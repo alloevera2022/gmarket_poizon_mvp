@@ -102,23 +102,36 @@ const AdminPanel = () => {
       message.error('Ошибка при выходе из системы');
     }
   };
+  const user = auth.currentUser;
+  if (user) {
+    console.log("Пользователь аутентифицирован:", user.email);
+    // Продолжаем с сохранением данных в Firestore
+  } else {
+    console.log("Пользователь не авторизован");
+  }
 
   const handleSave = async (values: CalculatorParams) => {
     try {
-      console.log("Пытаемся сохранить:", values); // Логирование
+      console.log("Попытка сохранения:", values);
       
+      // Добавляем merge: true для частичного обновления
       await setDoc(doc(db, "settings", "calculator"), values, { merge: true });
       
+      console.log("Успешно сохранено в Firestore");
       setParams(values);
       message.success('Параметры успешно сохранены!');
-      console.log("Параметры сохранены в Firestore");
+      
+      // Проверяем обновленные данные
+      const updatedDoc = await getDoc(doc(db, "settings", "calculator"));
+      console.log("Проверка после сохранения:", updatedDoc.data());
+      
     } catch (error) {
-      console.error("Детали ошибки сохранения:", {
+      console.error("Полная ошибка сохранения:", {
         error,
-        values,
-        firebaseConfig: app.options
+        firebaseConfig: app.options,
+        currentUser: auth.currentUser
       });
-      message.error('Ошибка при сохранении параметров. Проверьте консоль для деталей.');
+      message.error('Ошибка сохранения. Проверьте консоль для деталей.');
     }
   };
 
