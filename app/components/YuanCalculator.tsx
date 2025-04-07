@@ -4,7 +4,7 @@ import React from 'react';
 import { Form, InputNumber, Card, Divider, Typography, Space } from 'antd';
 import { useCalculator } from '../context/CalculatorContext';
 
-const { Text, Title } = Typography;
+const { Text, Title, Link } = Typography;
 
 export default function YuanCalculator() {
   const { params, loading } = useCalculator();
@@ -48,6 +48,12 @@ export default function YuanCalculator() {
         <Title level={1} style={{ textAlign: 'center', color: '#ff4d4f' }}>
           G Market x Poizon
         </Title>
+
+        <div style={{ textAlign: 'center' }}>
+        <Link href="https://t.me/gmarket" target="_blank">
+          Перейти в наш Telegram-канал для оформления заказа
+        </Link>
+      </div>
         
         <Card title="Расчет стоимости" variant="borderless">
           <Form layout="vertical">
@@ -61,8 +67,14 @@ export default function YuanCalculator() {
             </Form.Item>
   
             <Divider />
+              
+            <Form.Item label="Итоговая цена:">
+              <Text strong style={{ fontSize: '20px', color: '#ff4d4f' }}>
+                {formattedTotalPrice} руб. {/* Округляем итоговую цену */}
+              </Text>
+            </Form.Item>
   
-            <Form.Item label="Курс в юанях:">
+            <Form.Item label="Курс юаня к рублю:">
               <Text strong>{params.exchangeRate}</Text>
             </Form.Item>
   
@@ -79,12 +91,7 @@ export default function YuanCalculator() {
             </Form.Item>
   
             <Divider />
-  
-            <Form.Item label="Итоговая цена:">
-              <Text strong style={{ fontSize: '20px', color: '#ff4d4f' }}>
-                {formattedTotalPrice} руб. {/* Округляем итоговую цену */}
-              </Text>
-            </Form.Item>
+
           </Form>
         </Card>
       </Space>
