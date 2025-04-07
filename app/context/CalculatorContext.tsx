@@ -29,8 +29,8 @@ const CalculatorContext = createContext<{
 });
 
 // Функция для преобразования значений в числа
-const parseToNumber = (value: any): number => {
-  const parsedValue = parseFloat(value);
+const parseToNumber = (value: unknown): number => {
+  const parsedValue = typeof value === 'string' || typeof value === 'number' ? parseFloat(value as string) : NaN;
   return isNaN(parsedValue) ? 0 : parsedValue;
 };
 
@@ -46,7 +46,7 @@ export const CalculatorProvider = ({ children }: { children: React.ReactNode }) 
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         // Преобразуем данные в числа перед установкой
-        const data = docSnap.data() as CalculatorParams;
+        const data = docSnap.data() as Record<string, unknown>; // Используем Record<string, unknown> для данных из Firestore
         setParams({
           exchangeRate: parseToNumber(data.exchangeRate),
           rubleRate: parseToNumber(data.rubleRate),
@@ -60,7 +60,7 @@ export const CalculatorProvider = ({ children }: { children: React.ReactNode }) 
     // Используем onSnapshot для обновления данных в реальном времени
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data() as CalculatorParams;
+        const data = docSnap.data() as Record<string, unknown>;
         setParams({
           exchangeRate: parseToNumber(data.exchangeRate),
           rubleRate: parseToNumber(data.rubleRate),
