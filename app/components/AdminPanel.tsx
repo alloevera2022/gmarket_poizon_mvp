@@ -56,32 +56,35 @@ const AdminPanel = () => {
   const handleLogin = async (values: { email: string; password: string }) => {
     setAuthLoading(true);
     setLoginError(null);
-    
+  
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       setIsAuthenticated(true);
       message.success('Успешный вход в админ-панель');
-    } catch (error: any) {
-      const errorCode = error.code;
+    } catch (error: unknown) {  // Используем unknown вместо any
       let errorMessage = 'Ошибка входа';
-
-      switch (errorCode) {
-        case 'auth/invalid-credential':
-          errorMessage = 'Неверный email или пароль';
-          break;
-        case 'auth/user-not-found':
-          errorMessage = 'Пользователь с таким email не найден';
-          break;
-        case 'auth/wrong-password':
-          errorMessage = 'Неверный пароль';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Слишком много попыток. Попробуйте позже';
-          break;
-        default:
-          errorMessage = 'Произошла ошибка при входе';
+  
+      // Проверяем, является ли ошибка объектом с кодом
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = (error as { code: string }).code;
+        switch (errorCode) {
+          case 'auth/invalid-credential':
+            errorMessage = 'Неверный email или пароль';
+            break;
+          case 'auth/user-not-found':
+            errorMessage = 'Пользователь с таким email не найден';
+            break;
+          case 'auth/wrong-password':
+            errorMessage = 'Неверный пароль';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Слишком много попыток. Попробуйте позже';
+            break;
+          default:
+            errorMessage = 'Произошла ошибка при входе';
+        }
       }
-
+  
       setLoginError(errorMessage);
       console.error('Ошибка аутентификации:', error);
     } finally {
@@ -102,12 +105,20 @@ const AdminPanel = () => {
 
   const handleSave = async (values: CalculatorParams) => {
     try {
-      await setDoc(doc(db, "settings", "calculator"), values);
+      console.log("Пытаемся сохранить:", values); // Логирование
+      
+      await setDoc(doc(db, "settings", "calculator"), values, { merge: true });
+      
       setParams(values);
       message.success('Параметры успешно сохранены!');
+      console.log("Параметры сохранены в Firestore");
     } catch (error) {
-      console.error("Ошибка сохранения:", error);
-      message.error('Ошибка при сохранении параметров');
+      console.error("Детали ошибки сохранения:", {
+        error,
+        values,
+        firebaseConfig: app.options
+      });
+      message.error('Ошибка при сохранении параметров. Проверьте консоль для деталей.');
     }
   };
 
