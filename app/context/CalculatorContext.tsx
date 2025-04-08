@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db } from '../lib/firebase'; // Импортируем Firestore
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { db } from "../lib/firebase"; // Импортируем Firestore
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 interface CalculatorParams {
   exchangeRate: number;
@@ -18,24 +18,48 @@ const defaultParams: CalculatorParams = {
   deliveryFee: 1300,
 };
 
+const defaultDeliveryCategories = {
+  "Кофты": 1.6,
+  "Кроссовки": 1.5,
+  "Куртки/Ветровки": 1.1,
+  "Джинсы/Брюки": 0.9,
+  "Футболки/Шорты/Аксессуары": 1.1,
+  "Барсетки/Клатчи": 0.9,
+  "Зимняя обувь": 1.7,
+  "Сумки/Рюкзаки": 1.5,
+  "Техника/Парфюмерия/Алкоголь/Еда/Ювелирные изделия/Часы": 2,
+};
+
 const CalculatorContext = createContext<{
   params: CalculatorParams;
   setParams: (params: CalculatorParams) => void;
+  deliveryCategories: Record<string, number>; // Добавляем deliveryCategories
   loading: boolean;
-}>( {
+}>({
   params: defaultParams,
   setParams: () => {},
+  deliveryCategories: defaultDeliveryCategories, // Устанавливаем значение по умолчанию
   loading: true,
 });
 
 // Функция для преобразования значений в числа
 const parseToNumber = (value: unknown): number => {
-  const parsedValue = typeof value === 'string' || typeof value === 'number' ? parseFloat(value as string) : NaN;
+  const parsedValue =
+    typeof value === "string" || typeof value === "number"
+      ? parseFloat(value as string)
+      : NaN;
   return isNaN(parsedValue) ? 0 : parsedValue;
 };
 
-export const CalculatorProvider = ({ children }: { children: React.ReactNode }) => {
+export const CalculatorProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [params, setParams] = useState<CalculatorParams>(defaultParams);
+  const [deliveryCategories, setDeliveryCategories] = useState<
+    Record<string, number>
+  >(defaultDeliveryCategories);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +77,17 @@ export const CalculatorProvider = ({ children }: { children: React.ReactNode }) 
           serviceFee: parseToNumber(data.serviceFee),
           deliveryFee: parseToNumber(data.deliveryFee),
         });
+
+        // Загружаем и устанавливаем категории доставки (если они есть в Firestore)
+        if (data.deliveryCategories) {
+          const parsedDeliveryCategories = Object.fromEntries(
+            Object.entries(data.deliveryCategories).map(([key, value]) => [
+              key,
+              parseToNumber(value),
+            ])
+          );
+          setDeliveryCategories(parsedDeliveryCategories);
+        }
       }
       setLoading(false);
     };
@@ -67,6 +102,16 @@ export const CalculatorProvider = ({ children }: { children: React.ReactNode }) 
           serviceFee: parseToNumber(data.serviceFee),
           deliveryFee: parseToNumber(data.deliveryFee),
         });
+
+        if (data.deliveryCategories) {
+          const parsedDeliveryCategories = Object.fromEntries(
+            Object.entries(data.deliveryCategories).map(([key, value]) => [
+              key,
+              parseToNumber(value),
+            ])
+          );
+          setDeliveryCategories(parsedDeliveryCategories);
+        }
       }
     });
 
@@ -75,7 +120,9 @@ export const CalculatorProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <CalculatorContext.Provider value={{ params, setParams, loading }}>
+    <CalculatorContext.Provider
+      value={{ params, setParams, deliveryCategories, loading }}
+    >
       {children}
     </CalculatorContext.Provider>
   );

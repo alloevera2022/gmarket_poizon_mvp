@@ -1,101 +1,138 @@
 "use client";
 
-import React from 'react';
-import { Form, InputNumber, Card, Divider, Typography, Space } from 'antd';
-import { useCalculator } from '../context/CalculatorContext';
+import React from "react";
+import {
+  Form,
+  InputNumber,
+  Card,
+  Divider,
+  Typography,
+  Space,
+  Select,
+  Spin
+} from "antd";
+import { useCalculator } from "../context/CalculatorContext";
 
 const { Text, Title, Link } = Typography;
 
 export default function YuanCalculator() {
-  const { params, loading } = useCalculator();
-  const [yuan, setYuan] = React.useState<number>(100);
+  const { params, loading, deliveryCategories } = useCalculator();
+  const [category, setCategory] = React.useState<string>("-"); // Устанавливаем начальное значение категории
+  const [yuan, setYuan] = React.useState<number>(0);
 
   // Функция расчета стоимости в рублях с округлением
   const calculateSom = (yuanValue: number): number => {
-    if (isNaN(yuanValue) || yuanValue <= 0) return 0; // Проверяем, что введено корректное число
-    return yuanValue * params.exchangeRate; // Умножаем на курс для получения рубле
+    if (isNaN(yuanValue) || yuanValue <= 0) return 0;
+    return yuanValue * params.exchangeRate;
   };
 
-  // Функция расчета итоговой цены с округлением
+  // Функция расчета итоговой цены с учетом коэффициента категории доставки
   const calculateTotal = (yuanValue: number): number => {
-    const som = calculateSom(yuanValue); // Получаем цену в рублях
-    if (isNaN(som) || som <= 0) return 0; // Проверяем, что расчет корректный
+    const som = calculateSom(yuanValue);
+    if (isNaN(som) || som <= 0) return 0;
 
-    // Проверяем, что услуга и доставка являются числами
     const serviceFee = isNaN(params.serviceFee) || params.serviceFee <= 0 ? 0 : params.serviceFee;
-    const deliveryFee = isNaN(params.deliveryFee) || params.deliveryFee <= 0 ? 0 : params.deliveryFee;
+    
+    // Получаем коэффициент для выбранной категории товара
+    const categoryCoefficient = deliveryCategories[category] || 1;
 
-    // Суммируем цену в рублях с услугой и доставкой
+    // Расчет доставки с учетом коэффициента
+    const deliveryFee = params.deliveryFee * categoryCoefficient;
+
     return som + serviceFee + deliveryFee;
   };
 
-  if (loading) return <div>Загрузка...</div>;
+  if (loading) return <div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh', // Выравнивание по центру экрана
+    textAlign: 'center',
+  }}
+>
+  <Spin size="large" />
+  <Text style={{ marginTop: '20px', fontSize: '24px', color: '#ffffff' }} >
+    Загрузка данных, пожалуйста, подождите...
+  </Text>
+</div>;
 
   // Итоговая цена с округлением до двух знаков
   const totalPrice = calculateTotal(yuan);
 
-  // Проверяем, является ли totalPrice числом
-  const validTotalPrice = !isNaN(totalPrice) && typeof totalPrice === 'number' ? totalPrice : 0;
+  const validTotalPrice = !isNaN(totalPrice) && typeof totalPrice === "number" ? totalPrice : 0;
 
-  // Округляем итоговую цену и проверяем, что это число
-  const formattedTotalPrice = typeof validTotalPrice === 'number' ? validTotalPrice.toFixed(2) : '0.00';
-
-  console.log('totalPrice:', validTotalPrice); // Для отладки
+  const formattedTotalPrice = typeof validTotalPrice === "number" ? validTotalPrice.toFixed(2) : "0.00";
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '20px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Title level={1} style={{ textAlign: 'center', color: '#ff4d4f' }}>
+    <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px" }}>
+      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+        <Title level={1} style={{ textAlign: "center", color: "#ff4d4f" }}>
           G Market x Poizon
         </Title>
 
-        <div style={{ textAlign: 'center' }}>
-        <Link href="https://t.me/gmarket" target="_blank">
-          Перейти в наш Telegram-канал для оформления заказа
-        </Link>
-      </div>
-        
+        <div style={{ textAlign: "center" }}>
+          <Link href="https://t.me/gmarket" target="_blank">
+            Перейти в наш Telegram-канал для оформления заказа
+          </Link>
+        </div>
+
         <Card title="Расчет стоимости" variant="borderless">
           <Form layout="vertical">
             <Form.Item label="Цена в юанях:">
               <InputNumber
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
                 min={0}
                 value={yuan}
-                onChange={(value) => setYuan(value || 0)} // Убедимся, что значение не null/undefined
+                onChange={(value) => setYuan(value || 0)}
               />
             </Form.Item>
-  
-            <Divider />
-              
-            <Form.Item label="Итоговая цена:">
-              <Text strong style={{ fontSize: '20px', color: '#ff4d4f' }}>
-                {formattedTotalPrice} руб. {/* Округляем итоговую цену */}
-              </Text>
+
+            <Form.Item label="Категория товара:">
+              <Select
+                value={category}
+                onChange={(value) => setCategory(value)}
+                style={{ width: "100%" }}
+              >
+                {Object.entries(deliveryCategories).map(([key]) => (
+                  <Select.Option key={key} value={key}>
+                    {key}
+                  </Select.Option>
+                ))}
+              </Select>
             </Form.Item>
-  
-            <Form.Item label="Курс юаня к рублю:">
-              <Text strong>{params.exchangeRate}</Text>
-            </Form.Item>
-  
-            <Form.Item label="Цена в рублях:">
-              <Text strong>{calculateSom(yuan).toFixed(2)}</Text> {/* Округляем до 2 знаков */}
-            </Form.Item>
-  
-            <Form.Item label="Наша услуга:">
-              <Text strong>{params.serviceFee}</Text>
-            </Form.Item>
-  
-            <Form.Item label="Доставка:">
-              <Text strong>{params.deliveryFee}</Text>
-            </Form.Item>
-  
+
             <Divider />
 
+            <Form.Item label="Итоговая цена:">
+              <Text strong style={{ fontSize: "20px", color: "#ff4d4f" }}>
+                {formattedTotalPrice} руб.
+              </Text>
+            </Form.Item>
+
+            <Form.Item label="Курс юаня к рублю:">
+              <Text strong>{params.exchangeRate} </Text>
+            </Form.Item>
+
+            <Form.Item label="Цена в рублях:">
+              <Text strong>{calculateSom(yuan).toFixed(2)} руб.</Text>
+            </Form.Item>
+
+            <Form.Item label="Наша услуга:">
+              <Text strong>{params.serviceFee} руб.</Text>
+            </Form.Item>
+
+            <Form.Item label="Доставка:">
+              <Text strong>
+                {deliveryCategories[category] * params.deliveryFee || 0} руб. 
+              </Text>
+            </Form.Item>
+
+            <Divider />
           </Form>
         </Card>
       </Space>
     </div>
   );
 }
-
