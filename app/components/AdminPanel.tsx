@@ -250,13 +250,13 @@ const AdminPanel = () => {
               <Input type="number" step="0.01" />
             </Form.Item>
 
-            <Form.Item
+            {/* <Form.Item
               name="serviceFee"
               label="Наша услуга (руб.)"
               rules={[{ required: true, message: "Введите стоимость услуги" }]}
             >
               <Input type="number" />
-            </Form.Item>
+            </Form.Item> */}
 
             <Form.Item
   name="deliveryFee"
@@ -286,7 +286,7 @@ const AdminPanel = () => {
         <Card title="Текущие значения">
           <Space direction="vertical">
             <Text>Курс юаня: {params.exchangeRate} рубль/юань</Text>
-            <Text>Услуга: {params.serviceFee} руб.</Text>
+            {/* <Text>Услуга: {params.serviceFee} руб.</Text> */}
             <Text>Доставка: {params.deliveryFee} руб.</Text>
           </Space>
         </Card>
