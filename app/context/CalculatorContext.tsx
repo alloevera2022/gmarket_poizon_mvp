@@ -11,6 +11,7 @@ interface CalculatorParams {
   deliveryFee: number;
 }
 
+
 const defaultParams: CalculatorParams = {
   exchangeRate: 12.7,
   rubleRate: 5791.2,

@@ -10,37 +10,58 @@ import {
   Divider,
   Space,
   Alert,
-  Collapse,
+  InputNumber,
+  notification,
 } from "antd";
 import { auth } from "../lib/firebase";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getFirestore, setDoc, getDoc } from "firebase/firestore";
 import { app } from "../lib/firebase";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+const { Title } = Typography;
 
-// Инициализация Firestore
 const db = getFirestore(app);
 
 interface CalculatorParams {
   exchangeRate: number;
   serviceFee: number;
   deliveryFee: number;
+  deliveryCategories?: Record<string, number>;
 }
+
+const defaultCategories = {
+  "Кофты": 1.6,
+  "Кроссовки": 1.5,
+  "Куртки/Ветровки": 1.1,
+  "Джинсы/Брюки": 0.9,
+  "Футболки/Шорты/Аксессуары": 1.1,
+  "Барсетки/Клатчи": 0.9,
+  "Зимняя обувь": 1.7,
+  "Сумки/Рюкзаки": 1.5,
+  "Техника/Парфюмерия/Алкоголь/Еда/Ювелирные изделия/Часы": 2,
+};
 
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [form] = Form.useForm();
+
   const [params, setParams] = useState<CalculatorParams>({
     exchangeRate: 12.7,
     serviceFee: 1500,
     deliveryFee: 1300,
+    deliveryCategories: defaultCategories,
   });
-  const [form] = Form.useForm();
-  const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Настройка позиции pop-up сообщений
+    message.config({
+      top: 80,
+      duration: 2,
+    });
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -49,13 +70,26 @@ const AdminPanel = () => {
       try {
         const docRef = doc(db, "settings", "calculator");
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
-          setParams(docSnap.data() as CalculatorParams);
-          form.setFieldsValue(docSnap.data());
+          const data = docSnap.data();
+          setParams((prevParams) => ({
+            ...prevParams,
+            ...data,
+            deliveryCategories: {
+              ...defaultCategories,
+              ...(data.deliveryCategories || {}),
+            },
+          }));
+          form.setFieldsValue({
+            ...data,
+            deliveryCategories: {
+              ...defaultCategories,
+              ...(data.deliveryCategories || {}),
+            },
+          });
         }
-      } catch (error) {
-        console.error("Ошибка загрузки параметров:", error);
+      } catch {
+        console.error("Ошибка загрузки параметров");
         message.error("Не удалось загрузить параметры");
       } finally {
         setLoading(false);
@@ -63,7 +97,7 @@ const AdminPanel = () => {
     };
 
     loadParams();
-  }, [isAuthenticated, form]);
+  }, [isAuthenticated, form]); // Исправлено: убрали params, так как используем функциональное обновление
 
   const handleLogin = async (values: { email: string; password: string }) => {
     setAuthLoading(true);
@@ -73,33 +107,13 @@ const AdminPanel = () => {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       setIsAuthenticated(true);
       message.success("Успешный вход в админ-панель");
-    } catch (error: unknown) {
-      // Используем unknown вместо any
+    } catch (error) {
       let errorMessage = "Ошибка входа";
-
-      // Проверяем, является ли ошибка объектом с кодом
-      if (error && typeof error === "object" && "code" in error) {
-        const errorCode = (error as { code: string }).code;
-        switch (errorCode) {
-          case "auth/invalid-credential":
-            errorMessage = "Неверный email или пароль";
-            break;
-          case "auth/user-not-found":
-            errorMessage = "Пользователь с таким email не найден";
-            break;
-          case "auth/wrong-password":
-            errorMessage = "Неверный пароль";
-            break;
-          case "auth/too-many-requests":
-            errorMessage = "Слишком много попыток. Попробуйте позже";
-            break;
-          default:
-            errorMessage = "Произошла ошибка при входе";
-        }
+      if (error instanceof Error) {
+        console.error(error); // Логируем ошибку
+        errorMessage = error.message;
       }
-
       setLoginError(errorMessage);
-      console.error("Ошибка аутентификации:", error);
     } finally {
       setAuthLoading(false);
     }
@@ -109,34 +123,24 @@ const AdminPanel = () => {
     try {
       await signOut(auth);
       setIsAuthenticated(false);
-      message.success("Вы успешно вышли из системы");
-    } catch (error) {
-      console.error("Ошибка выхода:", error);
-      message.error("Ошибка при выходе из системы");
+      message.success("Вы вышли из системы");
+    } catch {
+      message.error("Ошибка при выходе");
     }
   };
 
   const handleSave = async (values: CalculatorParams) => {
     try {
-      console.log("Попытка сохранения:", values);
-
-      // Добавляем merge: true для частичного обновления
       await setDoc(doc(db, "settings", "calculator"), values, { merge: true });
-
-      console.log("Успешно сохранено в Firestore");
       setParams(values);
-      message.success("Параметры успешно сохранены!");
-
-      // Проверяем обновленные данные
-      const updatedDoc = await getDoc(doc(db, "settings", "calculator"));
-      console.log("Проверка после сохранения:", updatedDoc.data());
-    } catch (error) {
-      console.error("Полная ошибка сохранения:", {
-        error,
-        firebaseConfig: app.options,
-        currentUser: auth.currentUser,
+      notification.success({
+        message: "Сохранено",
+        description: "Параметры успешно сохранены",
+        placement: "bottomRight",
       });
-      message.error("Ошибка сохранения. Проверьте консоль для деталей.");
+    } catch {
+      console.error("Ошибка сохранения");
+      message.error("Ошибка сохранения. Проверьте консоль.");
     }
   };
 
@@ -154,61 +158,24 @@ const AdminPanel = () => {
               onClose={() => setLoginError(null)}
             />
           )}
-
           <Form onFinish={handleLogin} layout="vertical">
             <Form.Item
               name="email"
               label="Email"
-              validateStatus={loginError ? "error" : ""}
-              rules={[
-                {
-                  required: true,
-                  message: "Введите email",
-                  type: "email",
-                },
-              ]}
+              rules={[{ required: true, message: "Введите email", type: "email" }]}
             >
-              <Input
-                placeholder="admin@example.com"
-                prefix={<ExclamationCircleOutlined />}
-                onChange={() => setLoginError(null)}
-              />
+              <Input placeholder="admin@example.com" />
             </Form.Item>
-
             <Form.Item
               name="password"
               label="Пароль"
-              validateStatus={loginError ? "error" : ""}
-              rules={[
-                {
-                  required: true,
-                  message: "Введите пароль",
-                  min: 6,
-                },
-              ]}
+              rules={[{ required: true, message: "Введите пароль", min: 6 }]}
             >
-              <Input.Password
-                placeholder="••••••••"
-                onChange={() => setLoginError(null)}
-                iconRender={(visible) =>
-                  visible ? (
-                    <ExclamationCircleOutlined />
-                  ) : (
-                    <ExclamationCircleOutlined />
-                  )
-                }
-              />
+              <Input.Password placeholder="••••••••" />
             </Form.Item>
-
             <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                loading={authLoading}
-                icon={loginError ? <ExclamationCircleOutlined /> : null}
-              >
-                {authLoading ? "Вход..." : "Войти"}
+              <Button type="primary" htmlType="submit" block loading={authLoading}>
+                Войти
               </Button>
             </Form.Item>
           </Form>
@@ -226,12 +193,7 @@ const AdminPanel = () => {
           title="Параметры калькулятора"
           loading={loading}
           extra={
-            <Button
-              type="link"
-              danger
-              onClick={handleLogout}
-              icon={<ExclamationCircleOutlined />}
-            >
+            <Button type="link" danger onClick={handleLogout}>
               Выйти
             </Button>
           }
@@ -259,70 +221,35 @@ const AdminPanel = () => {
             </Form.Item> */}
 
             <Form.Item
-  name="deliveryFee"
-  label={
-    <>
-      Доставка (руб.){" "}
-      <Text type="secondary" style={{ fontSize: "12px" }}>
-        — смотрите полную логику работы стоимости доставки в Справке ниже.
-      </Text>
-    </>
-  }
-  rules={[{ required: true, message: "Введите стоимость доставки" }]}
->
-  <Input type="number" />
-</Form.Item>
-
+              name="deliveryFee"
+              label="Базовая стоимость доставки (руб.)"
+              rules={[{ required: true, message: "Введите базовую доставку" }]}
+            >
+              <Input type="number" />
+            </Form.Item>
 
             <Divider />
+            <Title level={4}>Стоимость доставки по категориям</Title>
+
+            {Object.entries(params.deliveryCategories || defaultCategories).map(
+              ([category]) => (  // Мы больше не используем 'value'
+                <Form.Item
+                  key={category}
+                  label={category}
+                  name={["deliveryCategories", category]}
+                  rules={[{ required: true, message: "Введите коэффициент" }]}
+                >
+                  <InputNumber min={0} step={0.1} />
+                </Form.Item>
+              )
+            )}
+
             <Form.Item>
               <Button type="primary" htmlType="submit" block size="large">
                 Сохранить изменения
               </Button>
             </Form.Item>
           </Form>
-        </Card>
-
-        <Card title="Текущие значения">
-          <Space direction="vertical">
-            <Text>Курс юаня: {params.exchangeRate} рубль/юань</Text>
-            {/* <Text>Услуга: {params.serviceFee} руб.</Text> */}
-            <Text>Доставка: {params.deliveryFee} руб.</Text>
-          </Space>
-        </Card>
-
-        <Card title="Справка">
-          <Collapse defaultActiveKey={[]}>
-            <Panel header="Как работают коэффициенты для доставки?" key="1">
-              <Text>
-                В админ-панели можно установить базовую стоимость доставки. Эта
-                стоимость умножается на коэффициенты, которые зависят от
-                категории товара. Каждый товар имеет свой коэффициент, который
-                влияет на итоговую цену доставки.
-                <br />
-                <br />
-                Пример: если базовая стоимость доставки составляет 1000 рублей,
-                а коэффициент для категории «Кофты» равен 1.6, то итоговая
-                стоимость доставки для кофты составит 1000 * 1.6 = 1600 рублей.
-                <br />
-                <br />
-                Категории и их коэффициенты:
-                <ul>
-                  <li>Кофты: 1.6</li>
-                  <li>Кроссовки: 1.5</li>
-                  <li>Куртки/Ветровки: 1.1</li>
-                  <li>Джинсы/Брюки: 0.9</li>
-                  <li>Футболки/Шорты/Аксессуары: 1.1</li>
-                  <li>Барсетки/Клатчи: 0.9</li>
-                  <li>Зимняя обувь: 1.7</li>
-                  <li>Сумки/Рюкзаки: 1.5</li>
-                  <li>
-                    Техника/Парфюмерия/Алкоголь/Еда/Ювелирные изделия/Часы: 2
-                  </li>
-                </ul>
-              </Text>
-            </Panel>
-          </Collapse>
         </Card>
       </Space>
     </div>
