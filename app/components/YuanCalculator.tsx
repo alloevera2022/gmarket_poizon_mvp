@@ -103,8 +103,8 @@ const calculateTotal = (yuanValue: number): number => {
         </Title>
 
         <div style={{ textAlign: "center" }}>
-          <Link href="https://t.me/gmarket" target="_blank">
-            Перейти в наш Telegram-канал для оформления заказа
+          <Link href="https://t.me/GMarketManager" target="_blank">
+           Для оформления заказа свяжитесь с нашим менеджером в Telegram. 
           </Link>
         </div>
 
